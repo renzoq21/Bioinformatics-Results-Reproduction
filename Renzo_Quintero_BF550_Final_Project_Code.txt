@@ -1,0 +1,178 @@
+######FIGURE 1#######
+import pandas as pd
+fc = pd.read_csv("/Users/renzoq/Downloads/Peixoto_CC_FC_RT.txt", sep="\t", index_col=0)
+neg_controls = pd.read_csv("/Users/renzoq/Downloads/Peixoto_NegativeControls.txt", sep='\t')
+positive_controls = pd.read_csv("/Users/renzoq/Downloads/Peixoto_positive_controls.txt", sep='\t')
+print("Gene Expression Data (FC):")
+print(fc.head())
+print("\nNegative Controls:")
+print(neg_controls.head())
+print("\nPositive Controls:")
+print(positive_controls.head())
+# Filter genes: retain genes with counts > 10 in more than 5 samples
+filtered_fc = fc[fc.apply(lambda row: (row > 10).sum() > 5, axis=1)]
+print("Original dataset shape:", fc.shape)
+print("Filtered dataset shape:", filtered_fc.shape)
+print("\nFiltered Gene Expression Data:")
+print(filtered_fc.head())
+# Define a function for UQ normalization
+def upper_quartile_normalization(data):
+    # Calculate the 75th percentile for each sample (column)
+    uq_values = data.quantile(0.75)
+    # Normalize each sample by dividing by its 75th percentile
+    normalized_data = data.div(uq_values, axis=1)
+    return normalized_data
+# Apply UQ normalization to the filtered dataset
+uq_normalized_fc = upper_quartile_normalization(filtered_fc)
+print("\nUpper Quartile Normalized Data (First 5 Rows):")
+print(uq_normalized_fc.head())
+import numpy as np
+# Apply log2 transformation to the UQ-normalized data, adding 1 to avoid log(0)
+log_transformed_fc = np.log2(uq_normalized_fc + 1)
+print("\nLog-Transformed Data (First 5 Rows):")
+print(log_transformed_fc.head())
+# Calculate the Relative Log Expression (RLE)
+rle_fc = log_transformed_fc.sub(log_transformed_fc.median(axis=1), axis=0)
+print("\nRelative Log Expression (RLE) Data (First 5 Rows):")
+print(rle_fc.head())
+print("\nSummary Statistics for RLE Data:")
+print(rle_fc.describe())
+import matplotlib.pyplot as plt
+import seaborn as sns
+# Define colors for groups: red for CC, blue for FC, green for RT
+colors = ['red'] * 5 + ['blue'] * 5 + ['green'] * 5
+# Generate the RLE boxplot
+plt.figure(figsize=(14, 8))  # Increase canvas size
+sns.boxplot(data=rle_fc, palette=colors, showfliers=False, linewidth=1.5, width=0.6)  # Adjust box width and line thickness
+# Add a horizontal reference line at y=0
+plt.axhline(0, color="black", linestyle="--", linewidth=1.5)
+# Set plot labels and title
+plt.title("Relative Log Expression (RLE) with UQ Normalization", fontsize=16)
+plt.xlabel("Samples", fontsize=14)
+plt.ylabel("Relative Log Expression", fontsize=14)
+# Rotate x-axis labels for better readability
+plt.xticks(rotation=45, fontsize=12)
+plt.yticks(fontsize=12)
+# Adjust y-axis limits to match the paper
+plt.ylim(-0.2, 0.2)
+# Finalize layout and display the plot
+plt.tight_layout()
+plt.show()
+
+######FIGURE 2#######
+import pandas as pd
+import numpy as np
+from sklearn.decomposition import PCA
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Load and preprocess the GSE0261 dataset
+gse0261_path = "/Users/renzoq/Downloads/GSE60261.txt"
+gse0261 = pd.read_csv(gse0261_path, sep="\t", index_col=0)
+
+# Log transform the data
+gse0261_log = np.log2(gse0261 + 1)
+
+# Perform PCA
+pca = PCA(n_components=2)
+pca_0261 = pca.fit_transform(gse0261_log.T)
+
+# Extract explained variance
+explained_variance_0261 = pca.explained_variance_ratio_ * 100
+
+# Add sample labels and conditions
+sample_labels_gse0261 = ["WT1", "WT2", "WT3", "KO1", "KO2", "KO3"]
+conditions_gse0261 = ["WT", "WT", "WT", "KO", "KO", "KO"]
+
+# Rescale PCA values to limit outlier impact
+pca_0261_rescaled = pca_0261 / np.max(np.abs(pca_0261), axis=0)  # Scale to range [-1, 1]
+
+# Plot the PCA results
+plt.figure(figsize=(8, 6))
+sns.scatterplot(
+    x=pca_0261_rescaled[:, 0],
+    y=pca_0261_rescaled[:, 1],
+    hue=conditions_gse0261,
+    palette=["red", "blue"],
+    legend="full"
+)
+
+# Add sample labels
+for i, txt in enumerate(sample_labels_gse0261):
+    plt.text(pca_0261_rescaled[i, 0], pca_0261_rescaled[i, 1], txt, fontsize=10)
+
+# Customize axes and grid
+plt.title("GSE0261 PCA Plot (Adjusted Scale)", fontsize=14)
+plt.xlabel(f"PC1 ({explained_variance_0261[0]:.2f}% Variance)", fontsize=12)
+plt.ylabel(f"PC2 ({explained_variance_0261[1]:.2f}% Variance)", fontsize=12)
+plt.axhline(0, color="black", linestyle="--", linewidth=0.5)
+plt.axvline(0, color="black", linestyle="--", linewidth=0.5)
+
+# Adjust axes limits to better display outliers
+plt.xlim(-1.2, 1.2)  # Extend a bit beyond rescaled values for padding
+plt.ylim(-1.2, 1.2)
+
+# Add a grid for better visual clarity
+plt.grid(visible=True, linestyle="--", linewidth=0.5)
+
+plt.tight_layout()
+plt.show()
+
+######FIGURE 3#######
+import pandas as pd
+import numpy as np
+from sklearn.decomposition import PCA
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Load and preprocess the GSE0261 dataset
+gse0261_path = "/Users/renzoq/Downloads/GSE60261.txt"
+gse0261 = pd.read_csv(gse0261_path, sep="\t", index_col=0)
+
+# Log transform the data
+gse0261_log = np.log2(gse0261 + 1)
+
+# Perform PCA
+pca = PCA(n_components=2)
+pca_0261 = pca.fit_transform(gse0261_log.T)
+
+# Extract explained variance
+explained_variance_0261 = pca.explained_variance_ratio_ * 100
+
+# Add sample labels and conditions
+sample_labels_gse0261 = ["WT1", "WT2", "WT3", "KO1", "KO2", "KO3"]
+conditions_gse0261 = ["WT", "WT", "WT", "KO", "KO", "KO"]
+
+# Rescale PCA values to limit outlier impact
+pca_0261_rescaled = pca_0261 / np.max(np.abs(pca_0261), axis=0)  # Scale to range [-1, 1]
+
+# Plot the PCA results
+plt.figure(figsize=(8, 6))
+sns.scatterplot(
+    x=pca_0261_rescaled[:, 0],
+    y=pca_0261_rescaled[:, 1],
+    hue=conditions_gse0261,
+    palette=["red", "blue"],
+    legend="full"
+)
+
+# Add sample labels
+for i, txt in enumerate(sample_labels_gse0261):
+    plt.text(pca_0261_rescaled[i, 0], pca_0261_rescaled[i, 1], txt, fontsize=10)
+
+# Customize axes and grid
+plt.title("GSE0261 PCA Plot (Adjusted Scale)", fontsize=14)
+plt.xlabel(f"PC1 ({explained_variance_0261[0]:.2f}% Variance)", fontsize=12)
+plt.ylabel(f"PC2 ({explained_variance_0261[1]:.2f}% Variance)", fontsize=12)
+plt.axhline(0, color="black", linestyle="--", linewidth=0.5)
+plt.axvline(0, color="black", linestyle="--", linewidth=0.5)
+
+# Adjust axes limits to better display outliers
+plt.xlim(-1.2, 1.2)  # Extend a bit beyond rescaled values for padding
+plt.ylim(-1.2, 1.2)
+
+# Add a grid for better visual clarity
+plt.grid(visible=True, linestyle="--", linewidth=0.5)
+
+plt.tight_layout()
+plt.show()
